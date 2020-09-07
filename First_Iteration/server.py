@@ -1,25 +1,21 @@
 import socket
 import sys
 import pickle
-# import packet
 
 from _thread import *
 from game import Game
-from multiprocessing.connection import Listener
-
 
 server = socket.gethostbyname(socket.gethostname())
 port = 5555
-s = Listener((server, port))
 
-# s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-# try:
-# 	s.bind((server, port))
-# except socket.error as e:
-# 	str(e)
+try:
+	s.bind((server, port))
+except socket.error as e:
+	str(e)
 
-# s.listen(2) #We want 2 connections
+s.listen(2) #We want 2 connections
 print("Waiting for a connection, Server Started")
 
 connected = set()
@@ -37,7 +33,7 @@ def client_thread(conn, p, gameId, games):
 	while True:
 
 		try:
-			data = conn.recv()
+			data = conn.recv(4096)
 
 			if gameId in games:
 				# Get game for this player
@@ -49,15 +45,15 @@ def client_thread(conn, p, gameId, games):
 
 				else:
 
-					if pickle.loads(data) == "get":
+					if data.decode() == "get":
 						reply = game
 						conn.sendall(pickle.dumps(reply))
 
-					if pickle.loads(data) == "move":
+					if data.decode() == "move":
 						newMove = conn.recv(2048)
 
 						# This is a move
-						move = newMove
+						move = pickle.loads(newMove)
 
 						# Move will be of type Class
 						game.play(p, move)
@@ -66,8 +62,9 @@ def client_thread(conn, p, gameId, games):
 						reply = game
 						pickled_reply = pickle.dumps(reply)
 						print(pickled_reply)
+						conn.sendall(pickled_reply)
 
-					if pickle.loads(data) == "draw":
+					if data.decode() == "draw":
 						game.draw(p)
 
 						games[gameId] = game
@@ -91,8 +88,8 @@ def client_thread(conn, p, gameId, games):
 
 
 while True:
-	conn = s.accept()
-	print("Connected to:")
+	conn, addr = s.accept()
+	print("Connected to:", addr)
 
 	idCount += 1
 	p = 0

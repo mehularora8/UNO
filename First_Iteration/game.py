@@ -38,9 +38,6 @@ class Game:
 	def getLastMove(self):
 		return self.lastMove
 
-	def endTurn(self):
-		self.turn = (self.turn + 1) % 2
-
 	def play(self, player, move: Card):
 		"""
 		@Param: player- which player's move is this?

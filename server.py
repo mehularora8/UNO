@@ -1,21 +1,17 @@
 import socket
 import sys
 import pickle
+# import packet
 
 from _thread import *
 from game import Game
+from multiprocessing.connection import Listener
+
 
 server = socket.gethostbyname(socket.gethostname())
 port = 5555
+s = Listener((server, port))
 
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-try:
-	s.bind((server, port))
-except socket.error as e:
-	str(e)
-
-s.listen(2) #We want 2 connections
 print("Waiting for a connection, Server Started")
 
 connected = set()
@@ -25,7 +21,8 @@ idCount = 0
 def client_thread(conn, p, gameId, games):
 
 	global idCount
-	conn.send(str.encode(str(p))) # send player number. No pickling needed
+	conn.send(p) # send player number. No pickling needed
+	print("sending id")
 
 	reply = ""
 	#User can either send a move, or inform that they've drawn a card. 
@@ -33,7 +30,8 @@ def client_thread(conn, p, gameId, games):
 	while True:
 
 		try:
-			data = conn.recv(4096)
+			data = conn.recv()
+			print(data)
 
 			if gameId in games:
 				# Get game for this player
@@ -45,32 +43,36 @@ def client_thread(conn, p, gameId, games):
 
 				else:
 
-					if data.decode() == "get":
+					if data == "get":
 						reply = game
-						conn.sendall(pickle.dumps(reply))
+						conn.send(reply)
 
-					if data.decode() == "move":
-						newMove = conn.recv(2048)
+					if data == "move":
+						newMove = conn.recv()
 
 						# This is a move
-						move = pickle.loads(newMove)
+						move = newMove
 
 						# Move will be of type Class
 						game.play(p, move)
 
 						games[gameId] = game
 						reply = game
-						pickled_reply = pickle.dumps(reply)
-						print(pickled_reply)
-						conn.sendall(pickled_reply)
+						conn.send(reply)
 
-					if data.decode() == "draw":
+					if data == "draw":
 						game.draw(p)
 
 						games[gameId] = game
 						reply = game
-						pickled_reply = pickle.dumps(reply)
-						conn.sendall(pickled_reply)
+						conn.send(reply)
+
+					if data == "end":
+						game.endTurn()
+						games[gameId] = game
+
+						conn.send(game)
+
 			else:
 				print("No game ID found.")
 				break
@@ -88,16 +90,15 @@ def client_thread(conn, p, gameId, games):
 
 
 while True:
-	conn, addr = s.accept()
-	print("Connected to:", addr)
+	conn = s.accept()
 
 	idCount += 1
+
 	p = 0
 	gameId = (idCount - 1)//2
 
 	if idCount % 2 == 1:
 		games[gameId] = Game(gameId)
-		print("Starting new game")
 	else:
 		games[gameId].ready = True
 		p = 1

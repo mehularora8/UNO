@@ -2,7 +2,7 @@ import pygame
 from network import Network
 import pickle
 from Cards import Card, cards
-from multiprocessing.connection import Client
+from sys import exit
 import time
 
 pygame.init()
@@ -148,8 +148,9 @@ def main():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
+                exit()
                 run = False
-                
+
             if event.type == pygame.MOUSEBUTTONDOWN:
                 # Only handle this event if the player is on turn.
                 if game.turn == player:
